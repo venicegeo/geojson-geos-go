@@ -1,9 +1,10 @@
-# geojson-wkt-go
+# geojson-geos-go
 
 ## Overview
 
-Pulls the geometries out of GeoJSON and converts them to WKT in an overly convoluted process using GEOS.
+Tools for interacting with GeoJSON via GEOS. For example:
+* convert a GEOS geometry to GeoJSON
+* convert a WKT geometry to GeoJSON by turning it to a GEOS geometry first
 
 Relies on venicegeo/geojson-go and GEOS.
-
 
