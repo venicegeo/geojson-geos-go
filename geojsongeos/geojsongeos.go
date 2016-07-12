@@ -50,8 +50,8 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 	case *geojson.Polygon:
 		var coords []geos.Coord
 		var coordsArray [][]geos.Coord
-		for jnx := 0; jnx < len(gt.Coordinates); jnx++ {
-			coords = parseCoordArray(gt.Coordinates[jnx])
+		for inx := 0; inx < len(gt.Coordinates); inx++ {
+			coords = parseCoordArray(gt.Coordinates[inx])
 			coordsArray = append(coordsArray, coords)
 		}
 		geometry, err = geos.NewPolygon(coordsArray[0], coordsArray[1:]...)
@@ -75,9 +75,47 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 	case *geojson.GeometryCollection:
 		err = errors.New("Unimplemented GeometryCollection in GeosFromGeoJSON")
 	case *geojson.MultiPolygon:
-		err = errors.New("Unimplemented MultiPolygon in GeosFromGeoJSON")
+		var (
+			coords      []geos.Coord
+			coordsArray [][]geos.Coord
+			polygons    []*geos.Geometry
+			polygon     *geos.Geometry
+		)
+		for _, polygonCoords := range gt.Coordinates {
+			for _, ringCoords := range polygonCoords {
+				coords = parseCoordArray(ringCoords)
+				coordsArray = append(coordsArray, coords)
+			}
+			if polygon, err = geos.NewPolygon(coordsArray[0], coordsArray[1:]...); err != nil {
+				return nil, err
+			}
+			polygons = append(polygons, polygon)
+
+		}
+		if geometry, err = geos.NewCollection(geos.MULTIPOLYGON, polygons...); err != nil {
+			return nil, err
+		}
 	case *geojson.Feature:
 		return GeosFromGeoJSON(gt.Geometry)
+	case *geojson.FeatureCollection:
+		var (
+			geometries []*geos.Geometry
+			gc         *geos.Geometry
+		)
+		for _, feature := range gt.Features {
+			if geometry, err = GeosFromGeoJSON(feature); err != nil {
+				return nil, err
+			}
+			geometries = append(geometries, geometry)
+		}
+		if gc, err = geos.NewCollection(geos.GEOMETRYCOLLECTION, geometries...); err != nil {
+			return nil, err
+		}
+		if geometry, err = gc.Buffer(0); err != nil {
+			return nil, err
+		}
+
+		return geometry, nil
 	default:
 		err = fmt.Errorf("Unexpected type in GeosFromGeoJSON: %T\n", gt)
 	}
