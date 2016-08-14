@@ -138,7 +138,7 @@ func GeoJSONFromGeos(input *geos.Geometry) (interface{}, error) {
 			if xval, err = input.X(); err != nil {
 				return nil, err
 			}
-			if yval, err = input.X(); err != nil {
+			if yval, err = input.Y(); err != nil {
 				return nil, err
 			}
 			result = geojson.NewPoint([]float64{xval, yval})
@@ -172,6 +172,29 @@ func GeoJSONFromGeos(input *geos.Geometry) (interface{}, error) {
 			}
 			result = geojson.NewPolygon(coordinates)
 
+		case geos.MULTIPOLYGON:
+			var (
+				count       int
+				coordinates [][][][]float64
+				polygon     *geos.Geometry
+				polygonIfc  interface{}
+				gjPolygon   *geojson.Polygon
+				ok          bool
+			)
+			if count, err = input.NGeometry(); err != nil {
+				return nil, err
+			}
+			for inx := 0; inx < count; inx++ {
+				if polygon, err = input.Geometry(inx); err != nil {
+					return nil, err
+				}
+				polygonIfc, err = GeoJSONFromGeos(polygon)
+				if gjPolygon, ok = polygonIfc.(*geojson.Polygon); !ok {
+					return nil, fmt.Errorf("Expected Polygon, received %T", polygonIfc)
+				}
+				coordinates = append(coordinates, gjPolygon.Coordinates)
+			}
+			result = geojson.NewMultiPolygon(coordinates)
 		default:
 			err = fmt.Errorf("Unimplemented %v", gType)
 		}
