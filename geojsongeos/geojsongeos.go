@@ -195,6 +195,26 @@ func GeoJSONFromGeos(input *geos.Geometry) (interface{}, error) {
 				coordinates = append(coordinates, gjPolygon.Coordinates)
 			}
 			result = geojson.NewMultiPolygon(coordinates)
+		case geos.GEOMETRYCOLLECTION:
+			var (
+				count       int
+				geometries  []interface{}
+				polygon     *geos.Geometry
+				geometryIfc interface{}
+			)
+			if count, err = input.NGeometry(); err != nil {
+				return nil, err
+			}
+			for inx := 0; inx < count; inx++ {
+				if polygon, err = input.Geometry(inx); err != nil {
+					return nil, err
+				}
+				if geometryIfc, err = GeoJSONFromGeos(polygon); err != nil {
+					return nil, err
+				}
+				geometries = append(geometries, geometryIfc)
+			}
+			result = geojson.NewGeometryCollection(geometries)
 		default:
 			err = fmt.Errorf("Unimplemented %v", gType)
 		}
