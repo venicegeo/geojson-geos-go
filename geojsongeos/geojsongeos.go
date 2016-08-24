@@ -82,6 +82,7 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 			polygon     *geos.Geometry
 		)
 		for _, polygonCoords := range gt.Coordinates {
+			coordsArray = nil
 			for _, ringCoords := range polygonCoords {
 				coords = parseCoordArray(ringCoords)
 				coordsArray = append(coordsArray, coords)
@@ -90,7 +91,6 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 				return nil, err
 			}
 			polygons = append(polygons, polygon)
-
 		}
 		if geometry, err = geos.NewCollection(geos.MULTIPOLYGON, polygons...); err != nil {
 			return nil, err
@@ -171,6 +171,26 @@ func GeoJSONFromGeos(input *geos.Geometry) (interface{}, error) {
 				coordinates = append(coordinates, arrayFromCoords(coords))
 			}
 			result = geojson.NewPolygon(coordinates)
+
+		case geos.MULTILINESTRING:
+			var (
+				coordinates [][][]float64
+				count       int
+				lineString  *geos.Geometry
+			)
+			if count, err = input.NGeometry(); err != nil {
+				return nil, err
+			}
+			for inx := 0; inx < count; inx++ {
+				if lineString, err = input.Geometry(inx); err != nil {
+					return nil, err
+				}
+				if coords, err = lineString.Coords(); err != nil {
+					return nil, err
+				}
+				coordinates = append(coordinates, arrayFromCoords(coords))
+			}
+			result = geojson.NewMultiLineString(coordinates)
 
 		case geos.MULTIPOLYGON:
 			var (
