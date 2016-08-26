@@ -116,6 +116,8 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 		}
 
 		return geometry, nil
+	case map[string]interface{}:
+		return GeosFromGeoJSON(geojson.FromMap(gt))
 	default:
 		err = fmt.Errorf("Unexpected type in GeosFromGeoJSON: %T\n", gt)
 	}
@@ -250,4 +252,86 @@ func arrayFromCoords(input []geos.Coord) [][]float64 {
 		result = append(result, arr[:])
 	}
 	return result
+}
+
+// PointCloud returns a geos.MULTIPOINT
+func PointCloud(input *geos.Geometry) (*geos.Geometry, error) {
+	var (
+		collection *geos.Geometry
+		points     []*geos.Geometry
+		err        error
+	)
+	if points, err = getPointSlice(input); err != nil {
+		return nil, err
+	}
+	if collection, err = geos.NewCollection(geos.MULTIPOINT, points...); err != nil {
+		return nil, err
+	}
+	return collection, nil
+}
+
+// returns a point slice, or calls itself recursively until it can
+func getPointSlice(input *geos.Geometry) ([]*geos.Geometry, error) {
+	var (
+		geom *geos.Geometry
+		points,
+		currPoints []*geos.Geometry
+		geomType geos.GeometryType
+		count    int
+		err      error
+	)
+	if geomType, err = input.Type(); err != nil {
+		return nil, err
+	}
+	switch geomType {
+	case geos.MULTIPOLYGON, geos.GEOMETRYCOLLECTION, geos.MULTILINESTRING, geos.MULTIPOINT:
+		if count, err = input.NGeometry(); err != nil {
+			return nil, err
+		}
+		for inx := 0; inx < count; inx++ {
+			if geom, err = input.Geometry(inx); err != nil {
+				return nil, err
+			}
+			if currPoints, err = getPointSlice(geom); err != nil {
+				return nil, err
+			}
+			points = append(points, currPoints...)
+		}
+	case geos.POLYGON:
+		var (
+			ring  *geos.Geometry
+			holes []*geos.Geometry
+		)
+		if ring, err = input.Shell(); err != nil {
+			return nil, err
+		}
+		if currPoints, err = getPointSlice(ring); err != nil {
+			return nil, err
+		}
+		points = append(points, currPoints...)
+		if holes, err = input.Holes(); err != nil {
+			return nil, err
+		}
+		for _, ring = range holes {
+			if currPoints, err = getPointSlice(ring); err != nil {
+				return nil, err
+			}
+			points = append(points, currPoints...)
+		}
+	case geos.POINT:
+		points = append(points, input)
+	case geos.LINESTRING, geos.LINEARRING:
+		if count, err = input.NPoint(); err != nil {
+			return nil, err
+		}
+		for inx := 0; inx < count; inx++ {
+			if geom, err = input.Point(inx); err != nil {
+				return nil, err
+			}
+			points = append(points, geom)
+		}
+	default:
+		return nil, fmt.Errorf("Cannot create point cloud from geometry type %v", geomType)
+	}
+	return points, nil
 }
