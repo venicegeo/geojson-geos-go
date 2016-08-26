@@ -100,7 +100,6 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 	case *geojson.FeatureCollection:
 		var (
 			geometries []*geos.Geometry
-			gc         *geos.Geometry
 		)
 		for _, feature := range gt.Features {
 			if geometry, err = GeosFromGeoJSON(feature); err != nil {
@@ -108,10 +107,7 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 			}
 			geometries = append(geometries, geometry)
 		}
-		if gc, err = geos.NewCollection(geos.GEOMETRYCOLLECTION, geometries...); err != nil {
-			return nil, err
-		}
-		if geometry, err = gc.Buffer(0); err != nil {
+		if geometry, err = geos.NewCollection(geos.GEOMETRYCOLLECTION, geometries...); err != nil {
 			return nil, err
 		}
 
