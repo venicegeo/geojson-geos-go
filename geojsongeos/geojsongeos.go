@@ -24,6 +24,23 @@ import (
 	"github.com/venicegeo/geojson-go/geojson"
 )
 
+var inputGeojsonFiles = [...]string{
+	"test/point.geojson",
+	"test/point2.geojson",
+	"test/point3.geojson",
+	"test/linestring.geojson",
+	"test/polygon.geojson",
+	"test/polygon-dateline.geojson",
+	"test/polygon-hole.geojson",
+	"test/multipoint.geojson",
+	"test/multilinestring.geojson",
+	"test/multipolygon.geojson",
+	"test/geometrycollection.geojson",
+	"test/sample.geojson",
+	"test/boundingbox.geojson",
+	"test/featureCollectionWithGeometryCollection.geojson",
+	"test/featureCollection.geojson"}
+
 func parseCoord(input []float64) geos.Coord {
 	return geos.NewCoord(input[0], input[1])
 }

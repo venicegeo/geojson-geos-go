@@ -24,6 +24,27 @@ import (
 	"github.com/venicegeo/geojson-go/geojson"
 )
 
+var inputGeojsonFiles2 = [...]string{
+	"test/point.geojson",
+	"test/point2.geojson",
+	"test/point3.geojson",
+	"test/linestring.geojson",
+	"test/polygon.geojson",
+	"test/multipoint.geojson",
+	"test/multilinestring.geojson",
+	"test/multipolygon.geojson",
+	"test/geometrycollection.geojson",
+	"test/featureCollection.geojson"}
+
+var inputWKTFiles = [...]string{
+	"test/point.wkt",
+	"test/linestring.wkt",
+	"test/polygon.wkt",
+	"test/multipoint.wkt",
+	"test/multilinestring.wkt",
+	"test/multipolygon.wkt",
+	"test/geometrycollection.wkt"}
+
 func TestMain(t *testing.T) {
 	var (
 		bytes    []byte
@@ -31,19 +52,24 @@ func TestMain(t *testing.T) {
 		gj       interface{}
 		geometry *geos.Geometry
 	)
-	filename := "test/test.geojson"
-	if gj, err = geojson.ParseFile(filename); err == nil {
-		GeosFromGeoJSON(gj)
-	} else {
-		t.Error(err)
-	}
-	filename = "test/test.wkt"
-	if bytes, err = ioutil.ReadFile(filename); err == nil {
-		if geometry, err = geos.FromWKT(string(bytes)); err == nil {
-			_, err = GeoJSONFromGeos(geometry)
+	for inx, fileName := range inputGeojsonFiles2 {
+		if gj, err = geojson.ParseFile(fileName); err == nil {
+			GeosFromGeoJSON(gj)
+			t.Log(inx)
+		} else {
+			t.Error(err)
 		}
 	}
-	if err != nil {
-		t.Error(err)
+	for inx2, fileName2 := range inputWKTFiles {
+		if bytes, err = ioutil.ReadFile(fileName2); err == nil {
+			if geometry, err = geos.FromWKT(string(bytes)); err == nil {
+				_, err = GeoJSONFromGeos(geometry)
+				_, err = PointCloud(geometry)
+				t.Log(inx2)
+			}
+		}
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
