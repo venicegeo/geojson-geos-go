@@ -17,7 +17,6 @@ limitations under the License.
 package geojsongeos
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/paulsmith/gogeos/geos"
@@ -73,7 +72,20 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 		geometry, err = geos.NewCollection(geos.MULTILINESTRING, lineStrings...)
 
 	case *geojson.GeometryCollection:
-		err = errors.New("Unimplemented GeometryCollection in GeosFromGeoJSON")
+		var (
+			geometries []*geos.Geometry
+		)
+		for _, collection := range gt.Geometries {
+			if geometry, err = GeosFromGeoJSON(collection); err != nil {
+				return nil, err
+			}
+			geometries = append(geometries, geometry)
+		}
+		if geometry, err = geos.NewCollection(geos.GEOMETRYCOLLECTION, geometries...); err != nil {
+			return nil, err
+		}
+
+		return geometry, nil
 	case *geojson.MultiPolygon:
 		var (
 			coords      []geos.Coord
@@ -169,7 +181,25 @@ func GeoJSONFromGeos(input *geos.Geometry) (interface{}, error) {
 				coordinates = append(coordinates, arrayFromCoords(coords))
 			}
 			result = geojson.NewPolygon(coordinates)
-
+		case geos.MULTIPOINT:
+			var (
+				count       int
+				coordinates [][]float64
+				multipoint  *geos.Geometry
+			)
+			if count, err = input.NGeometry(); err != nil {
+				return nil, err
+			}
+			for inx := 0; inx < count; inx++ {
+				if multipoint, err = input.Geometry(inx); err != nil {
+					return nil, err
+				}
+				if coords, err = multipoint.Coords(); err != nil {
+					return nil, err
+				}
+				coordinates = append(coordinates, arrayFromPoints(coords))
+			}
+			result = geojson.NewMultiPoint(coordinates)
 		case geos.MULTILINESTRING:
 			var (
 				coordinates [][][]float64
@@ -247,6 +277,13 @@ func arrayFromCoords(input []geos.Coord) [][]float64 {
 		arr := [...]float64{input[inx].X, input[inx].Y}
 		result = append(result, arr[:])
 	}
+	return result
+}
+
+func arrayFromPoints(input []geos.Coord) []float64 {
+	var result []float64
+	arr := []float64{input[0].X, input[0].Y}
+	result = arr
 	return result
 }
 
