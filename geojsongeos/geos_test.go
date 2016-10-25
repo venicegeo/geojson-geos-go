@@ -32,7 +32,7 @@ var inputGeojsonFiles2 = [...]string{
 	"test/multipoint.geojson",
 	"test/multilinestring.geojson",
 	"test/multipolygon.geojson",
-	"test/geometryCollection.geojson",
+	"test/geometrycollection.geojson",
 	"test/featureCollection.geojson"}
 
 var inputWKTFiles = [...]string{
