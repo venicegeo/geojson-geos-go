@@ -19,6 +19,7 @@ package geojsongeos
 import (
 	"fmt"
 
+	pmgeojson "github.com/paulmach/go.geojson"
 	"github.com/paulsmith/gogeos/geos"
 	"github.com/venicegeo/geojson-go/geojson"
 )
@@ -44,6 +45,94 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 	switch gt := input.(type) {
 	case *geojson.Point:
 		geometry, err = geos.NewPoint(parseCoord(gt.Coordinates))
+	case *pmgeojson.Geometry:
+		switch gt.Type {
+		case pmgeojson.GeometryPoint:
+			geometry, err = geos.NewPoint(parseCoord(gt.Point))
+		case pmgeojson.GeometryLineString:
+			geometry, err = geos.NewLineString(parseCoordArray(gt.LineString)...)
+		case pmgeojson.GeometryPolygon:
+			var coords []geos.Coord
+			var coordsArray [][]geos.Coord
+			for inx := 0; inx < len(gt.Polygon); inx++ {
+				coords = parseCoordArray(gt.Polygon[inx])
+				coordsArray = append(coordsArray, coords)
+			}
+			geometry, err = geos.NewPolygon(coordsArray[0], coordsArray[1:]...)
+		case pmgeojson.GeometryMultiPoint:
+			var points []*geos.Geometry
+			var point *geos.Geometry
+			for jnx := 0; jnx < len(gt.MultiPoint); jnx++ {
+				point, err = geos.NewPoint(parseCoord(gt.MultiPoint[jnx]))
+				points = append(points, point)
+			}
+			geometry, err = geos.NewCollection(geos.MULTIPOINT, points...)
+		case pmgeojson.GeometryMultiLineString:
+			var lineStrings []*geos.Geometry
+			var lineString *geos.Geometry
+			for jnx := 0; jnx < len(gt.MultiLineString); jnx++ {
+				lineString, err = geos.NewLineString(parseCoordArray(gt.MultiLineString[jnx])...)
+				lineStrings = append(lineStrings, lineString)
+			}
+			geometry, err = geos.NewCollection(geos.MULTILINESTRING, lineStrings...)
+
+		case pmgeojson.GeometryCollection:
+			var (
+				geometries []*geos.Geometry
+			)
+			for _, collection := range gt.Geometries {
+				if geometry, err = GeosFromGeoJSON(collection); err != nil {
+					return nil, err
+				}
+				geometries = append(geometries, geometry)
+			}
+			if geometry, err = geos.NewCollection(geos.GEOMETRYCOLLECTION, geometries...); err != nil {
+				return nil, err
+			}
+
+			return geometry, nil
+		case pmgeojson.GeometryMultiPolygon:
+			var (
+				coords      []geos.Coord
+				coordsArray [][]geos.Coord
+				polygons    []*geos.Geometry
+				polygon     *geos.Geometry
+			)
+			for _, polygonCoords := range gt.MultiPolygon {
+				coordsArray = nil
+				for _, ringCoords := range polygonCoords {
+					coords = parseCoordArray(ringCoords)
+					coordsArray = append(coordsArray, coords)
+				}
+				if polygon, err = geos.NewPolygon(coordsArray[0], coordsArray[1:]...); err != nil {
+					return nil, err
+				}
+				polygons = append(polygons, polygon)
+			}
+			if geometry, err = geos.NewCollection(geos.MULTIPOLYGON, polygons...); err != nil {
+				return nil, err
+			}
+		default:
+			err = fmt.Errorf("unexpected geometry type in GeosFromGeoJSON: %T", gt)
+		}
+	case *pmgeojson.Feature:
+		return GeosFromGeoJSON(gt.Geometry)
+	case *pmgeojson.FeatureCollection:
+		var (
+			geometries []*geos.Geometry
+		)
+		for _, feature := range gt.Features {
+			if geometry, err = GeosFromGeoJSON(feature); err != nil {
+				return nil, err
+			}
+			geometries = append(geometries, geometry)
+		}
+		if geometry, err = geos.NewCollection(geos.GEOMETRYCOLLECTION, geometries...); err != nil {
+			return nil, err
+		}
+
+		return geometry, nil
+
 	case *geojson.LineString:
 		geometry, err = geos.NewLineString(parseCoordArray(gt.Coordinates)...)
 	case *geojson.Polygon:
@@ -127,7 +216,7 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 	case map[string]interface{}:
 		return GeosFromGeoJSON(geojson.FromMap(gt))
 	default:
-		err = fmt.Errorf("Unexpected type in GeosFromGeoJSON: %T\n", gt)
+		err = fmt.Errorf("unexpected type in GeosFromGeoJSON: %T", gt)
 	}
 	return geometry, err
 }

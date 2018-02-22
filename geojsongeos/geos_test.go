@@ -17,13 +17,25 @@ limitations under the License.
 package geojsongeos
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"strings"
 	"testing"
 
+	pmgeojson "github.com/paulmach/go.geojson"
 	"github.com/paulsmith/gogeos/geos"
 	"github.com/venicegeo/geojson-go/geojson"
 )
+
+var inputGeometries = [...]string{
+	"test/point",
+	"test/linestring",
+	"test/polygon",
+	"test/multipoint",
+	"test/multilinestring",
+	"test/multipolygon",
+	"test/geometrycollection",
+}
 
 var inputGeojsonFiles2 = [...]string{
 	"test/point.geojson",
@@ -44,6 +56,46 @@ var inputWKTFiles = [...]string{
 	"test/multipolygon.wkt",
 	"test/geometryCollection.wkt"}
 
+func TestPMGeoJSON(t *testing.T) {
+	var (
+		bytes    []byte
+		err      error
+		geometry *geos.Geometry
+	)
+	// Test all geojsonfiles on GeosFromGeoJSON
+	for inx, fileName := range inputGeometries {
+		var pmg pmgeojson.Geometry
+		if bytes, err = ioutil.ReadFile(fileName + ".geojson"); err == nil {
+			if err = json.Unmarshal(bytes, &pmg); err == nil {
+				geometry, err = GeosFromGeoJSON(&pmg)
+				t.Log(inx)
+				if wktbytes, err := ioutil.ReadFile(fileName + ".wkt"); err == nil {
+					if wktgeom, err := geos.FromWKT(string(wktbytes)); err == nil {
+						if eq, err := wktgeom.Equals(geometry); err == nil {
+							if !eq {
+								geometrywkt, _ := geometry.ToWKT()
+								if string(wktbytes) != geometrywkt {
+									t.Errorf("expected (%s), got (%s)", wktbytes, geometrywkt)
+								}
+							}
+						} else {
+							t.Error(err)
+						}
+					} else {
+						t.Error(err)
+					}
+				} else {
+					//t.Error(err)
+				}
+			} else {
+				t.Error(err)
+			}
+		} else {
+			t.Error(err)
+		}
+	}
+
+}
 func TestMain(t *testing.T) {
 	var (
 		bytes    []byte
