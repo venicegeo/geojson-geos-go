@@ -53,6 +53,9 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 			coords = parseCoordArray(gt.Coordinates[inx])
 			coordsArray = append(coordsArray, coords)
 		}
+		if len(coordsArray) == 0 {
+			return nil, fmt.Errorf("Empty Polygon in GeosFromGeoJSON\n")
+		}
 		geometry, err = geos.NewPolygon(coordsArray[0], coordsArray[1:]...)
 	case *geojson.MultiPoint:
 		var points []*geos.Geometry
@@ -98,6 +101,9 @@ func GeosFromGeoJSON(input interface{}) (*geos.Geometry, error) {
 			for _, ringCoords := range polygonCoords {
 				coords = parseCoordArray(ringCoords)
 				coordsArray = append(coordsArray, coords)
+			}
+			if len(coordsArray) == 0 {
+				return nil, fmt.Errorf("Empty Polygon inside MultiPolygon in GeosFromGeoJSON\n")
 			}
 			if polygon, err = geos.NewPolygon(coordsArray[0], coordsArray[1:]...); err != nil {
 				return nil, err
